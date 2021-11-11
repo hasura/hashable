@@ -28,32 +28,40 @@ import Data.Kind (Type)
 
 -- Type without constructors
 instance GHashable arity V1 where
-    ghashWithSalt _ salt _ = hashWithSalt salt ()
+    ghashWithSalt _ salt = \_ -> hashWithSalt salt ()
+    {-# INLINE ghashWithSalt #-}
 
 -- Constructor without arguments
 instance GHashable arity U1 where
-    ghashWithSalt _ salt U1 = hashWithSalt salt ()
+    ghashWithSalt _ salt = \U1 -> hashWithSalt salt ()
+    {-# INLINE ghashWithSalt #-}
 
 instance (GHashable arity a, GHashable arity b) => GHashable arity (a :*: b) where
-    ghashWithSalt toHash salt (x :*: y) =
-      (ghashWithSalt toHash (ghashWithSalt toHash salt x) y)
+    ghashWithSalt toHash salt = \(x :*: y) ->
+      ghashWithSalt toHash (ghashWithSalt toHash salt x) y
+    {-# INLINE ghashWithSalt #-}
 
 -- Metadata (constructor name, etc)
 instance GHashable arity a => GHashable arity (M1 i c a) where
     ghashWithSalt targs salt = ghashWithSalt targs salt . unM1
+    {-# INLINE ghashWithSalt #-}
 
 -- Constants, additional parameters, and rank-1 recursion
 instance Hashable a => GHashable arity (K1 i a) where
     ghashWithSalt _ = hashUsing unK1
+    {-# INLINE ghashWithSalt #-}
 
 instance GHashable One Par1 where
     ghashWithSalt (HashArgs1 h) salt = h salt . unPar1
+    {-# INLINE ghashWithSalt #-}
 
 instance Hashable1 f => GHashable One (Rec1 f) where
     ghashWithSalt (HashArgs1 h) salt = liftHashWithSalt h salt . unRec1
+    {-# INLINE ghashWithSalt #-}
 
 instance (Hashable1 f, GHashable One g) => GHashable One (f :.: g) where
-    ghashWithSalt targs salt = liftHashWithSalt (ghashWithSalt targs) salt . unComp1
+    ghashWithSalt targs salt = liftHashWithSalt (\salt'-> ghashWithSalt targs salt') salt . unComp1
+    {-# INLINE ghashWithSalt #-}
 
 class SumSize f => GSum arity f where
     hashSum :: HashArgs arity a -> Int -> Int -> f a -> Int
@@ -101,7 +109,8 @@ class SumSize f => GSum arity f where
 -- Integer's Hashable is of high quality).
 --
 instance (GSum arity a, GSum arity b) => GHashable arity (a :+: b) where
-    ghashWithSalt toHash salt = hashSum toHash salt 0
+    ghashWithSalt toHash salt = \s -> hashSum toHash salt 0 s
+    {-# INLINE ghashWithSalt #-}
 
 instance (GSum arity a, GSum arity b) => GSum arity (a :+: b) where
     hashSum toHash !salt !index s = case s of

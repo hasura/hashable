@@ -323,7 +323,7 @@ hashUsing :: (Hashable b) =>
           -> Int                -- ^ Salt.
           -> a                  -- ^ Value to transform.
           -> Int
-hashUsing f salt x = hashWithSalt salt (f x)
+hashUsing f = \salt x -> hashWithSalt salt (f x)
 {-# INLINE hashUsing #-}
 
 instance Hashable Int where
